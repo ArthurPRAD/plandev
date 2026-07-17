@@ -82,7 +82,7 @@ async function searchAddress() {
     if (chantierMarker) map.removeLayer(chantierMarker);
     chantierMarker = L.marker([+lat, +lon], {
       icon: L.divIcon({ className:'', iconAnchor:[60,12],
-        html:`<div style="background:#E24B4A;color:white;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)">📍 ${chantierData.nom||'Chantier'}</div>` })
+        html:`<div style="background:#E24B4A;color:white;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)">📍 ${escapeHtml(chantierData.nom)||'Chantier'}</div>` })
     }).addTo(map);
     const btn = document.getElementById('btn-next-draw');
     btn.style.display = 'block';
@@ -251,8 +251,8 @@ async function generateDeviation() {
 
   hide('panel-draw'); show('panel-result');
   document.getElementById('result-info').innerHTML = `
-    <strong>${chantierData.nom||'Chantier'}</strong><br>
-    ${chantierData.entreprise||''}<br>
+    <strong>${escapeHtml(chantierData.nom)||'Chantier'}</strong><br>
+    ${escapeHtml(chantierData.entreprise)}<br>
     Du ${fmtDate(chantierData.dateDebut)} au ${fmtDate(chantierData.dateFin)}<br>
     <span style="color:${ok>0?'#1D9E75':'#E24B4A'}">
       ${ok>0 ? `✓ ${ok} déviation(s) calculée(s)` : '⚠ Impossible de calculer — réessayez'}
@@ -397,6 +397,11 @@ function updateToggles() {
 }
 
 // ===== UTILS =====
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
 const show = id => { document.getElementById(id).style.display = 'block'; };
 const hide = id => { document.getElementById(id).style.display = 'none'; };
 function indicator(msg) { document.getElementById('step-indicator').textContent = msg; }
