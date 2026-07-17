@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlanDév — Plan de déviation automatique</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="map-layout">
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-small">⚠ PlanDév</div>
+        <div class="brand-sub-sm">Plan de déviation automatique</div>
+      </div>
+
+      <!-- ÉTAPE 0 : Informations chantier -->
+      <div class="step-panel" id="panel-info">
+        <div class="step-badge">Nouveau chantier</div>
+        <h2>Informations</h2>
+        <p class="step-desc">Ces informations apparaîtront sur le plan PDF exporté.</p>
+
+        <div class="field">
+          <label for="f-nom">Nom du chantier</label>
+          <input type="text" id="f-nom" placeholder="Ex: Réfection Avenue de la République" />
+        </div>
+        <div class="field">
+          <label for="f-entreprise">Entreprise</label>
+          <input type="text" id="f-entreprise" placeholder="Ex: Colas Île-de-France" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-date-debut">Début</label>
+            <input type="date" id="f-date-debut" />
+          </div>
+          <div class="field">
+            <label for="f-date-fin">Fin</label>
+            <input type="date" id="f-date-fin" />
+          </div>
+        </div>
+
+        <div id="f-error" class="error-msg" style="display:none">Veuillez remplir tous les champs.</div>
+        <button class="btn-primary" onclick="validateChantierForm()">Localiser le chantier →</button>
+        <p class="footer-note">100% gratuit · OpenStreetMap · Aucun compte requis</p>
+      </div>
+
+      <!-- ÉTAPE 1 : Recherche adresse -->
+      <div class="step-panel" id="panel-search" style="display:none">
+        <div class="step-badge">Étape 1 / 2</div>
+        <h2>Localiser le chantier</h2>
+        <p class="step-desc">Entrez l'adresse de la zone de travaux pour centrer la carte.</p>
+        <div class="search-row">
+          <input type="text" id="address-input" placeholder="Ex: Avenue de la République, Alfortville" />
+          <button class="btn-icon" onclick="searchAddress()" title="Rechercher">🔍</button>
+        </div>
+        <div id="search-error" class="error-msg" style="display:none">Adresse introuvable.</div>
+        <button class="btn-primary" id="btn-next-draw" style="display:none" onclick="goToDraw()">
+          Valider cet emplacement →
+        </button>
+        <button class="btn-secondary" onclick="goBackToInfo()">← Modifier les infos</button>
+      </div>
+
+      <!-- ÉTAPE 2 : Placement P1 / P2 -->
+      <div class="step-panel" id="panel-draw" style="display:none">
+        <div class="step-badge">Étape 2 / 2</div>
+        <h2>Segment barré</h2>
+
+        <div class="tip-box">
+          Cliquez sur le <strong>début</strong> puis la <strong>fin</strong> de la portion de route à barrer.<br>
+          Les points s'accrochent automatiquement sur la route.
+        </div>
+
+        <div id="step-indicator" class="step-indicator-label"></div>
+        <div id="draw-status" class="status-msg" style="display:none"></div>
+
+        <button class="btn-primary" id="btn-generate" style="display:none" onclick="generateDeviation()">
+          Générer les déviations →
+        </button>
+        <button class="btn-secondary" onclick="resetDraw()">↺ Recommencer</button>
+      </div>
+
+      <!-- Résultat -->
+      <div class="step-panel" id="panel-result" style="display:none">
+        <div class="step-badge success">✓ Déviation générée</div>
+        <h2>Plan de déviation</h2>
+
+        <div class="result-info" id="result-info"></div>
+
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-line red-dashed"></div>
+            <span>Route barrée</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line green"></div>
+            <span>Déviation 1</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line blue"></div>
+            <span>Déviation 2</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line orange"></div>
+            <span>Déviation 3</span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <button id="toggle-dev1" onclick="toggleDev1()" class="toggle-btn toggle-green">👁 Dév. 1</button>
+          <button id="toggle-dev2" onclick="toggleDev2()" class="toggle-btn toggle-blue">👁 Dév. 2</button>
+          <button id="toggle-dev3" onclick="toggleDev3()" class="toggle-btn toggle-orange">👁 Dév. 3</button>
+        </div>
+
+        <button class="btn-primary" onclick="exportPDF()">📄 Exporter en PDF</button>
+        <button class="btn-secondary" onclick="resetAll()">+ Nouveau chantier</button>
+
+        <div id="export-status" class="status-msg" style="display:none"></div>
+      </div>
+
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- PDF hidden -->
+  <div id="pdf-header" style="display:none">
+    <div id="pdf-content">
+      <div class="pdf-title-block">
+        <h1 id="pdf-nom"></h1>
+        <div class="pdf-meta">
+          <span id="pdf-entreprise"></span>
+          <span id="pdf-dates"></span>
+        </div>
+      </div>
+      <div id="pdf-map-container"><div id="pdf-map"></div></div>
+      <div class="pdf-legend-block">
+        <div class="pdf-legend-item"><div class="pdf-line red"></div> Route barrée</div>
+        <div class="pdf-legend-item"><div class="pdf-line green"></div> Déviation sens 1</div>
+        <div class="pdf-legend-item"><div class="pdf-line blue"></div> Déviation sens 2</div>
+      </div>
+      <div class="pdf-footer">Généré par PlanDév · <span id="pdf-generated-date"></span></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/pdf.js"></script>
+</body>
+</html>
